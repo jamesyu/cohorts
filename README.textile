@@ -1,0 +1,96 @@
+h1. Cohorts
+
+Cohorts is a simple, purely javascript, multivariate testing framework.
+
+It allows you to setup different cohorts for visitors that hit your site, and show them different designs, layouts, or whatever you want. Then, you can start tracking events that occur for each of the cohorts, and use the data gathered to make business decisions.
+
+By default, it uses Google Analytics event tracking for the data store, but you can customize it to use your own or another.
+
+Since the framework is purely js based, it's especially useful if you're working in an environment that has lots of page/fragment caching.
+
+h2. Basic Usage
+
+1. Setup the asynchronous version of Google Analytics using the instructions on this page: http://code.google.com/apis/analytics/docs/tracking/asyncTracking.html
+
+2. Include cohorts.js in the head of your page.
+
+3. Instantiate and configure the @Cohorts.Test@ object.
+
+For example, let's say you want to run a test to see whether a bigger header link results in more clicks. In your page, you have both big and small header links, and they are not displayed by default. You can setup 2 cohorts like this, assuming you are using jquery:
+
+<pre><code>
+    var header_test = new Cohorts.Test({
+        name: 'big_vs_small_header',
+        sample: 1, // we want to include all visitors in the test
+        cohorts: {
+            big: {
+                onChosen: function() {
+                    $('#big').show();
+                }
+            },
+            small: {
+                onChosen: function() {
+                    $('#small').show();
+                }
+            },
+        }
+    });
+
+    $('#big').click(function() {
+        header_test.event('Clicked on Header');
+    });
+
+    $('#small').click(function() {
+        header_test.event('Clicked on Header');
+    });
+</code></pre>
+
+After pushing this code and running it live on your site, you will see some new data in Event Tracking section of Google Analytics.
+
+There will be a new category called "cohorts", and under that, all your tests will show up as "actions". In this case "big_vs_small_header" will be an action.
+
+Under each test action, you will see various labels. For this example, you will see the following labels:
+
+* "big | Total" - The total number of people seeing the big header
+* "big | Clicked on Header " - The total number of people in the big cohort that clicked on the header
+* "small | Total" - The total number of people seeing the small header
+* "small | Clicked on Header " - The total number of people in the small cohort that clicked on the header
+
+h2. API
+
+To initiate the test, create an instance of @Cohorts.Test@, which accepts the following params:
+
+* @name@ The name of the test. This needs to be unique.
+* @sample@ A float from 0 to 1.0 representing the percentage of visitors that should be in the test. For example, if you specify 0.5, only 50% of visitors will be considered to be testable. This is useful if you want to restrict testing to a small percentage of visitors.
+* @cohorts@ Hash with keys being the names of the cohorts. For the values, you can specify a @onChosen@ function that should be executed as soon as the visitor resolves to that cohort.
+* @storageAdapter@ An object representing the data store you want to use. More details below. If you don't specify anything, it will defaults to using Google Analytics event tracking.
+
+h2. Don't want to use Google Analytics? No problem.
+
+Google Analytics event tracking is a great way to store data. They provide a great abstraction so you don't have to worry about makable a scalable data store for your tests.
+
+If you want to use another data store, simply specify an object for the storageAdapter parameter to the @Cohorts.Test@ constructor that looks like the following:
+
+<pre><code>
+{
+    // Called when the Cohort.Test is initialized, and the visitor is resolved into a cohort.
+    //   inTest: whether the visitor is in the test
+    //   testName: the name of the test
+    //   cohort: the cohort chosen for the visitor. Will be null if the visitor isn't in the test
+    onInitialize: function(inTest, testName, cohort) {},
+    
+    // Called when the event method is for the Cohort.Test instance is called.
+    //   testName: the name of the test
+    //   cohort: the cohort of the visitor
+    //   eventName: the name of the event the visitor triggered
+    onEvent: function(testName, cohort, eventName) {}
+}
+</code></pre>
+
+By specifying the above, you can easily hook up Cohorts to use your own data store. For example, you could make AJAX calls within @onInitialize@ and @onEvent@ to call your web service to store values in your database.
+
+h2. Details
+
+Cohorts uses javascript and cookies to track visitors and the various details about them. For all visitors that are chosen to be in the test, based on @sample@, it evenly divides visitors among the different cohorts specified.
+
+Once a visitor is chosen to be in/out of the test, and also in a cohort, they will be chosen the same way as long as their cookies persist.
