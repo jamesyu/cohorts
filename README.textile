@@ -10,7 +10,7 @@ Since the framework is purely js based, it's especially useful if you're working
 
 h2. Basic Usage
 
-1. Setup the asynchronous version of Google Analytics using the instructions on this page: http://code.google.com/apis/analytics/docs/tracking/asyncTracking.html
+1. Setup the asynchronous version of Google Analytics using the instructions on this page: "http://code.google.com/apis/analytics/docs/tracking/asyncTracking.html":http://code.google.com/apis/analytics/docs/tracking/asyncTracking.html
 
 2. Include cohorts.js in the head of your page.
 
@@ -69,7 +69,7 @@ h2. Don't want to use Google Analytics? No problem.
 
 Google Analytics event tracking is a great way to store data. They provide a great abstraction so you don't have to worry about makable a scalable data store for your tests.
 
-If you want to use another data store, simply specify an object for the storageAdapter parameter to the @Cohorts.Test@ constructor that looks like the following:
+If you want to use another data store, simply specify an object for the @storageAdapter@ parameter to the @Cohorts.Test@ constructor that looks like the following:
 
 <pre><code>
 {
@@ -89,8 +89,10 @@ If you want to use another data store, simply specify an object for the storageA
 
 By specifying the above, you can easily hook up Cohorts to use your own data store. For example, you could make AJAX calls within @onInitialize@ and @onEvent@ to call your web service to store values in your database.
 
-h2. Details
+h2. Details and Notes
 
 Cohorts uses javascript and cookies to track visitors and the various details about them. For all visitors that are chosen to be in the test, based on @sample@, it evenly divides visitors among the different cohorts specified.
 
 Once a visitor is chosen to be in/out of the test, and also in a cohort, they will be chosen the same way as long as their cookies persist.
+
+You can have multiple tests running on a page, as long as your test names are unique.
