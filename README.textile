@@ -43,9 +43,10 @@ For example, let's say you want to run a test to see whether a bigger header lin
     $('#small').click(function() {
         header_test.event('Clicked on Header');
     });
+    
 </code></pre>
 
-After pushing this code and running it live on your site, you will see some new data in Event Tracking section of Google Analytics.
+After running this live on your site, you will see some new data in Event Tracking section of Google Analytics.
 
 There will be a new category called "cohorts", and under that, all your tests will show up as "actions". In this case "big_vs_small_header" will be an action.
 
@@ -58,36 +59,48 @@ Under each test action, you will see various labels. For this example, you will 
 
 h2. API
 
-To initiate the test, create an instance of @Cohorts.Test@, which accepts the following params:
+h3. Constructor
+
+To initiate the test, create an instance of @Cohorts.Test@, which accepts an options hash with the following keys:
 
 * @name@ The name of the test. This needs to be unique.
 * @sample@ A float from 0 to 1.0 representing the percentage of visitors that should be in the test. For example, if you specify 0.5, only 50% of visitors will be considered to be testable. This is useful if you want to restrict testing to a small percentage of visitors.
-* @cohorts@ Hash with keys being the names of the cohorts. For the values, you can specify a @onChosen@ function that should be executed as soon as the visitor resolves to that cohort.
+* @cohorts@ Hash with keys of the names of the cohorts. For the values, you can specify a @onChosen@ function that should be executed as soon as the visitor resolves to that cohort.
 * @storageAdapter@ An object representing the data store you want to use. More details below. If you don't specify anything, it will defaults to using Google Analytics event tracking.
+
+h3. Instance Methods
+
+@inCohort(cohort_name)@ Whether the visitor is in the specified cohort.
+@getCohort()@ Returns the cohort chosen for the visitor.
+@setCohort(cohort_name)@ Sets the cohort for the visitor.
 
 h2. Don't want to use Google Analytics? No problem.
 
-Google Analytics event tracking is a great way to store data. They provide a great abstraction so you don't have to worry about makable a scalable data store for your tests.
+Google Analytics event tracking is a great way to store data. They provide a great abstraction so you don't have to worry about making a scalable data store for your tests.
 
 If you want to use another data store, simply specify an object for the @storageAdapter@ parameter to the @Cohorts.Test@ constructor that looks like the following:
 
 <pre><code>
-{
+myStorageAdapter = {
     // Called when the Cohort.Test is initialized, and the visitor is resolved into a cohort.
     //   inTest: whether the visitor is in the test
     //   testName: the name of the test
     //   cohort: the cohort chosen for the visitor. Will be null if the visitor isn't in the test
-    onInitialize: function(inTest, testName, cohort) {},
+    onInitialize: function(inTest, testName, cohort) {
+        // do initialization stuff
+    },
     
     // Called when the event method is for the Cohort.Test instance is called.
     //   testName: the name of the test
     //   cohort: the cohort of the visitor
     //   eventName: the name of the event the visitor triggered
-    onEvent: function(testName, cohort, eventName) {}
+    onEvent: function(testName, cohort, eventName) {
+        // do event stuff
+    }
 }
 </code></pre>
 
-By specifying the above, you can easily hook up Cohorts to use your own data store. For example, you could make AJAX calls within @onInitialize@ and @onEvent@ to call your web service to store values in your database.
+By specifying the above, you can easily hook up Cohorts to use your own data store. For example, you could make AJAX calls within @onInitialize@ and @onEvent@ to your web analytics service.
 
 h2. Details and Notes
 
@@ -96,3 +109,8 @@ Cohorts uses javascript and cookies to track visitors and the various details ab
 Once a visitor is chosen to be in/out of the test, and also in a cohort, they will be chosen the same way as long as their cookies persist.
 
 You can have multiple tests running on a page, as long as your test names are unique.
+
+h2. TODO
+
+* Allow forcing of cohort selection, useful for tests.
+* Ability to specify cookie expiry.
