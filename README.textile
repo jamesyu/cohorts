@@ -2,11 +2,11 @@ h1. Cohorts
 
 Cohorts is a simple, purely javascript, multivariate testing framework.
 
-It allows you to setup different cohorts for visitors that hit your site, and show them different designs, layouts, or whatever you want. Then, you can start tracking events that occur for each of the cohorts, and use the data gathered to make business decisions.
+It allows you to easily run split tests for visitors on your site, showing them different designs, layouts, or whatever you want. Cohorts also allows you to track interesting events that occur for each of the cohorts. By default, it uses Google Analytics event tracking to store data, but you can customize it to use your own or another.
 
-By default, it uses Google Analytics event tracking for the data store, but you can customize it to use your own or another.
+Note that Cohorts will not do any analysis for you: it's up to you to carefully consider analyze the data gathered to make business decisions.
 
-Since the framework is purely js based, it's especially useful if you're working in an environment that has lots of page/fragment caching.
+Since the framework is purely javascript based, it's especially useful if you're working in an environment that has page and fragment caching.
 
 h2. Basic Usage
 
@@ -16,9 +16,10 @@ h2. Basic Usage
 
 3. Instantiate and configure the @Cohorts.Test@ object.
 
-For example, let's say you want to run a test to see whether a bigger header link results in more clicks. In your page, you have both big and small header links, and they are not displayed by default. You can setup 2 cohorts like this, assuming you are using jquery:
+For example, say you want to run a test to determine whether a bigger header link results in more clicks. In your page, you have both big and small header links, and they are not displayed by default. You can setup 2 cohorts like this:
 
 <pre><code>
+    // Note that this example assumes jQuery
     var header_test = new Cohorts.Test({
         name: 'big_vs_small_header',
         sample: 1, // we want to include all visitors in the test
@@ -32,7 +33,7 @@ For example, let's say you want to run a test to see whether a bigger header lin
                 onChosen: function() {
                     $('#small').show();
                 }
-            },
+            }
         }
     });
 
@@ -46,7 +47,7 @@ For example, let's say you want to run a test to see whether a bigger header lin
     
 </code></pre>
 
-After running this live on your site, you will see some new data in Event Tracking section of Google Analytics.
+After running this live on your site, you will see new data in the Event Tracking section of Google Analytics.
 
 There will be a new category called "cohorts", and under that, all your tests will show up as "actions". In this case "big_vs_small_header" will be an action.
 
@@ -56,6 +57,8 @@ Under each test action, you will see various labels. For this example, you will 
 * "big | Clicked on Header " - The total number of people in the big cohort that clicked on the header
 * "small | Total" - The total number of people seeing the small header
 * "small | Clicked on Header " - The total number of people in the small cohort that clicked on the header
+
+From this data, you can determine the effects the design change.
 
 h2. API
 
