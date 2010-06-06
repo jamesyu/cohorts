@@ -102,6 +102,16 @@ myStorageAdapter = {
 
 By specifying the above, you can easily hook up Cohorts to use your own data store. For example, you could make AJAX calls within @onInitialize@ and @onEvent@ to your web analytics service.
 
+h2. Forcing Cohorts
+
+It's useful when testing to force yourself into a particular cohort. You can specify a cohort via URL encoded params in a hash, like so:
+
+<pre><code>
+http://www.example.com/page.html#test1=cohort_foo&test2=cohort_bar
+</code></pre>
+
+This would force @test1@ to be in @cohort_foo@ and @test2@ to be in @cohort_bar@. 
+
 h2. Details and Notes
 
 Cohorts uses javascript and cookies to track visitors and the various details about them. For all visitors that are chosen to be in the test, based on @sample@, it evenly divides visitors among the different cohorts specified.
@@ -112,5 +122,4 @@ You can have multiple tests running on a page, as long as your test names are un
 
 h2. TODO
 
-* Allow forcing of cohort selection, useful for tests.
 * Ability to specify cookie expiry.
