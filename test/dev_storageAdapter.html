@@ -44,24 +44,29 @@
                         },
                         small: {},
                     },
+					// This storage adapter just push events in browser console
+					// and gives you a warning if Google Analytics is not included
+					// It is designed for development environments
                     storageAdapter: {
-                        nameSpace: 'storageAdapter_cohorts',
-                        trackEvent: function(category, action, opt_label, opt_value) {
-                            if(window['_gaq']) {
-                                _gaq.push(['_trackEvent', category, action, opt_label, opt_value]);
-                            } else {
-                                throw(" _gaq object not found: It looks like you haven't correctly setup the asynchronous Google Analytics tracking code, and you are using the default GoogleAnalyticsAdapter.");
-                            }
-                        },
-                        onInitialize: function(inTest, testName, cohort, new_to_this_test) {
-                            if(inTest && new_to_this_test) {
-                                this.trackEvent(this.nameSpace, testName, cohort + ' | Total');
-                            }
-                        },
-                        onEvent: function(testName, cohort, eventName) {
-                            this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName);
-                        }
-                    }
+						nameSpace: 'cohorts',
+						trackEvent: function(category, action, opt_label, opt_value) {
+							console.log('trackEvent: ' + category + ', ' + action + ', ' + opt_label + ', ' + opt_value);
+
+							if(window['_gaq']) {
+								// this does nothing because this is a test adapter
+							} else {
+								console.log("_gaq object not found: It looks like you haven't correctly setup the asynchronous Google Analytics tracking code, and you are using the default GoogleAnalyticsAdapter.");
+							}
+						},
+						onInitialize: function(inTest, testName, cohort, new_to_this_test) {
+							if(inTest && new_to_this_test) {
+								this.trackEvent(this.nameSpace, testName, cohort + ' | Total');
+							}
+						},
+						onEvent: function(testName, cohort, eventName) {
+							this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName);
+						}
+					}
                 });
             
                 $('#big').click(function() {
