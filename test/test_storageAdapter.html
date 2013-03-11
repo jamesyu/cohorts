@@ -1,77 +1,68 @@
+<!DOCTYPE html>
 <html>
-    <head>
-        <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-        <title>Cohorts Test with StorageAdapter</title>
-        <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
-        <script type="text/javascript" src="../lib/cohorts.js"></script>
-        <script type="text/javascript">
+<head>
+<title>Cohorts.js</title>
 
-          var _gaq = _gaq || [];
-          _gaq.push(['_setAccount', 'UA-16758721-1']);
-          _gaq.push(['_trackPageview']);
-
-          (function() {
-            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-          })();
-
-        </script>
-    </head>
-    <body id="test" onload="">
-        <h1 style="display:none" id="big">
-            <a href="#">This is a big header</a>
-        </h1>
-        
-        <h2 id="small">
-            <a href="#">This is a small header</a>
-        </h2>
-        
-    
-        <script type="text/javascript" charset="utf-8">
-            $(document).ready(function() {
-                Cohorts.Options.debug = true;
-                
-                header_test = new Cohorts.Test({
-                    name: 'storageAdapter_big_vs_small_header',
-                    sample: 1,
-                    cohorts: {
-                        big: {
-                            onChosen: function() {
-                                $('#big').show();
-                                $('#small').hide();
-                            }
-                        },
-                        small: {},
-                    },
-                    storageAdapter: {
-                        nameSpace: 'storageAdapter_cohorts',
-                        trackEvent: function(category, action, opt_label, opt_value) {
-                            if(window['_gaq']) {
-                                _gaq.push(['_trackEvent', category, action, opt_label, opt_value]);
-                            } else {
-                                throw(" _gaq object not found: It looks like you haven't correctly setup the asynchronous Google Analytics tracking code, and you are using the default GoogleAnalyticsAdapter.");
-                            }
-                        },
-                        onInitialize: function(inTest, testName, cohort) {
-                            if(inTest) {
-                                this.trackEvent(this.nameSpace, testName, cohort + ' | Total');
-                            }
-                        },
-                        onEvent: function(testName, cohort, eventName) {
-                            this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName);
-                        }
-                    }
-                });
-            
-                $('#big').click(function() {
-                    header_test.event('Clicked on Big Header');
-                });
-            
-                $('#small').click(function() {
-                    header_test.event('Clicked on Small Header');
-                });
-            });
-        </script>
-    </body>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+<script type="text/javascript" src="cohorts.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+    var a_test = new Cohorts.Test({
+		name: 'a_test',
+		scope: 1, // Sets the scope for the test and custom variable: 1: Visitor, 2: Session, 3: Page 
+		cv_slot: 5, // Sets the custom variable slot used in the GoogleAnalyticsAdapter
+		sample: 1,
+		cohorts: {
+			variation_a: {
+				onChosen: function() {
+					$('p.message').html('Hello!');
+				}
+			},
+			variation_b: {
+				onChosen: function() {
+					$('p.message').html('Sup?');
+				}
+			},
+		},
+		storageAdapter: {
+			nameSpace: 'cohorts',
+			trackEvent: function(category, action, opt_label, opt_value, int_hit, cv_slot, scope) { 	
+				if (cv_slot) _gaq.push(['_setCustomVar', cv_slot, action, opt_label, scope]);
+				_gaq.push(['_trackEvent', category, action, opt_label, opt_value, int_hit]);
+			},
+			onInitialize: function(inTest, testName, cohort, cv_slot, scope) {
+				if(inTest && scope !== 3) {
+					this.trackEvent(this.nameSpace, testName, cohort, 0, true, cv_slot, scope);
+				}
+			},
+			onEvent: function(testName, cohort, eventName) {
+				this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName, 0, false);
+			}
+		}
+	});
+	$('p.message').click(function() {
+		a_test.event('Clicked on message'); // Track any evens with your storage adapter
+	});
+	// Add more test objects as you need
+});
+</script>
+<script type="text/javascript">
+ 
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-XXXXXX-Y']);
+  _gaq.push(['_trackPageview']);
+ 
+  (function() {
+	var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+	ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+	var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+ 
+</script>
+</head>
+<body>
+<h1>Testing</h1>
+<p class="message"></p>
+<p>For more information on how this works, check out the Readme.</p>
+</body>
 </html>
