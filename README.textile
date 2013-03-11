@@ -20,64 +20,42 @@ For example, say you want to run a test to determine whether a bigger header lin
 
 <pre><code>
 // Note that this example assumes jQuery
-$(document).ready(function () {
-
-    Cohorts.Options.debug = true;
-    font_test = new Cohorts.Test({
-        name: 'hello-goodbye',
-        scope: 1, // Set the scope for the test and custom variable: 1: Visitor, 2: Session, 3: Page 
-        sample: 1,
-        cohorts: {
-            hello: {
-                onChosen: function () {
-                    $('p.message').html('Hello, world.');
-                }
-            },
-            goodbye: {
-                onChosen: function () {
-                    $('p.message').html('Goodbye, world.');
-                }
-            },
-        },
-
-        storageAdapter: {
-            nameSpace: 'cohorts',
-            cv_slot: 1, // Choose which custom variable slot you'd like to use
-            trackEvent: function (category, action, opt_label, opt_value, int_hit, cv_slot, scope) {
-                if (cv_slot) _gaq.push(['_setCustomVar', cv_slot, action, opt_label, scope]); // Set custom variable before event
-                _gaq.push(['_trackEvent', category, action, opt_label, opt_value, int_hit]);
-            },
-            onInitialize: function (inTest, testName, cohort, cv_slot, scope) {
-                if (inTest && scope !== 3) {
-                    this.trackEvent(this.nameSpace, testName, cohort, 0, true, cv_slot, scope); // No need for cookies at page-level scope
-                }
-            },
-            onEvent: function (testName, cohort, eventName) {
-                this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName, 0, false);
-            }
-        }
-
-    });
-
-    $('p.message').click(function () {
-        hello - goodbye.event('Clicked on message'); // Track any evens with your storage adapter
-    });
-
-    // Add more test objects as you please
-
+$(document).ready(function() {
+	var a_test = new Cohorts.Test({
+		name: 'a_test',
+		scope: 1, // Sets the scope for the test and custom variable: 1: Visitor, 2: Session, 3: Page 
+		cv_slot: 5, // Sets the custom variable slot used in the GoogleAnalyticsAdapter
+		sample: 1,
+		cohorts: {
+			variation_a: {
+				onChosen: function() {
+					$('p.message').html('Hello.');
+				}
+			},
+			variation_b: {
+				onChosen: function() {
+					$('p.message').html('Sup?');
+				}
+			},
+		},
+	});
+	$('p.message').click(function() {
+		a_test.event('Clicked on message'); // Track any evens with your storage adapter
+	});
+	// Add more test objects as you need
 });
 </code></pre>
 
 After running this on your site, you will see new data in the Event Tracking section of Google Analytics.
 
-There will be a new category called "cohorts", and under that your tests will show up as "actions". In this case "big_vs_small_header" will be an action.
+There will be a new category called "cohorts", and under that your tests will show up as "actions". In this case "a_test" will be an action.
 
 Under each test action, you will see various labels. For this example, you will see the following labels:
 
-* "hello" - The total number of people seeing "hello"
-* "hello | Clicked on message" - The total number of people in the big cohort that converted
-* "goodbye" - The total number of people seeing "goodbye"
-* "goodbye | Clicked on message" - The total number of people in the small cohort that converted
+* "variation_a" - The total number of people seeing "variation_a"
+* "variation_a | Clicked on message" - The total number of people in this cohort that converted
+* "variation_b" - The total number of people seeing "variation_b"
+* "variation_b | Clicked on message" - The total number of people in this cohort that converted
 
 From this data, you can determine the effects the design change.
 
@@ -106,22 +84,25 @@ Google Analytics event tracking is a great way to store data. They provide a gre
 If you want to use another data store, simply specify an object for the @storageAdapter@ parameter to the @Cohorts.Test@ constructor that looks like the following:
 
 <pre><code>
-    storageAdapter: {
-        nameSpace: 'cohorts',
-    	cv_slot: 1, // Choose which custom variable slot you'd like to use
-        trackEvent: function(category, action, opt_label, opt_value, int_hit, cv_slot, scope) { 	
-			if (cv_slot) _gaq.push(['_setCustomVar', cv_slot, action, opt_label, scope]); // Set custom variable before event
-			_gaq.push(['_trackEvent', category, action, opt_label, opt_value, int_hit]);
-        },
-        onInitialize: function(inTest, testName, cohort, cv_slot, scope) {
-            if(inTest && scope !== 3) {
-                this.trackEvent(this.nameSpace, testName, cohort, 0, true, cv_slot, scope); // No need for cookies at page-level scope
-            }
-        },
-        onEvent: function(testName, cohort, eventName) {
-            this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName, 0, false);
-        }
+myStorageAdapter = {
+    // Called when the Cohort.Test is initialized, and the visitor is resolved into a cohort.
+    //   inTest: whether the visitor is in the test
+    //   testName: the name of the test
+    //   cohort: the cohort chosen for the visitor. Will be null if the visitor isn't in the test
+    //   cv_slot: the custom variable slot the test will occupy for the web analytics tool used
+    //   scope: the scope of the test (whether test/tracking persists at the visitor level [1] or session level [2])
+    onInitialize: function(inTest, testName, cohort, cv_slot, scope) {
+        // do initialization stuff
+    },
+    
+    // Called when the event method is for the Cohort.Test instance is called.
+    //   testName: the name of the test
+    //   cohort: the cohort of the visitor
+    //   eventName: the name of the event the visitor triggered
+    onEvent: function(testName, cohort, eventName) {
+        // do event stuff
     }
+}
 </code></pre>
 
 By specifying the above, you can easily hook up Cohorts to use your own data store. For example, you could make AJAX calls within @onInitialize@ and @onEvent@ to your web analytics service.
@@ -134,7 +115,7 @@ It's useful when testing to force yourself into a particular cohort. You can spe
 http://www.example.com/page.html#hello-goodbye=hello&test2=cohort
 </code></pre>
 
-This would force @test1@ to be in @cohort_foo@ and @test2@ to be in @cohort_bar@. 
+This would force @test1@ to be in @cohort_foo@ and @test2@ to be in @cohort_bar@. To preview your code in a production environment without exposing visitors to the test, you can just set the sample to 0 while you force particular versions of the page.
 
 h2. Details and Notes
 
