@@ -6,51 +6,33 @@
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
 <script type="text/javascript" src="cohorts.js"></script>
 <script type="text/javascript">
-$(document).ready(function(){
-
-    Cohorts.Options.debug = true;
-	font_test = new Cohorts.Test({
-		name: 'hello-goodbye',
-		scope: 1, // Set the scope for the test and custom variable: 1: Visitor, 2: Session, 3: Page 
+$(document).ready(function() {
+	var a_test = new Cohorts.Test({
+		name: 'a_test',
+		scope: 1, // Sets the scope for the test and custom variable: 1: Visitor, 2: Session, 3: Page 
+		cv_slot: 5, // Sets the custom variable slot used in the GoogleAnalyticsAdapter
 		sample: 1,
 		cohorts: {
-			hello: {
+			variation_a: {
 				onChosen: function() {
-					$('p.message').html('Hello, world.');
+					$('p.message').html('Hello!');
 				}
 			},
-			goodbye: {
+			variation_b: {
 				onChosen: function() {
-					$('p.message').html('Goodbye, world.');
+					$('p.message').html('Sup?');
 				}
 			},
 		},
-	
-    storageAdapter: {
-        nameSpace: 'cohorts',
-		cv_slot: 1, // Choose which custom variable slot you'd like to use
-        trackEvent: function(category, action, opt_label, opt_value, int_hit, cv_slot, scope) { 	
-			if (cv_slot) _gaq.push(['_setCustomVar', cv_slot, action, opt_label, scope]); // Set custom variable before event
-			_gaq.push(['_trackEvent', category, action, opt_label, opt_value, int_hit]);
-        },
-        onInitialize: function(inTest, testName, cohort, cv_slot, scope) {
-            if(inTest && scope !== 3) {
-                this.trackEvent(this.nameSpace, testName, cohort, 0, true, cv_slot, scope); // No need for cookies at page-level scope
-            }
-        },
-        onEvent: function(testName, cohort, eventName) {
-            this.trackEvent(this.nameSpace, testName, cohort + ' | ' + eventName, 0, false);
-        }
-    }
-	
+
 	});
 	
 	$('p.message').click(function() {
-        hello-goodbye.event('Clicked on message'); // Track any evens with your storage adapter
-    });
+		a_test.event('Clicked on message'); // Track any evens with your storage adapter
+	});
 	
-	// Add more test objects as you please
-	
+	// Add more test objects as you need
+
 });
 </script>
 <script type="text/javascript">
