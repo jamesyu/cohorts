@@ -19,30 +19,43 @@ h2. Basic Usage
 For example, say you want to run a test to determine whether a bigger header link results in more clicks. In your page, you have both big and small header links, and they are not displayed by default. You can setup 2 cohorts like this:
 
 <pre><code>
-// Note that this example assumes jQuery
-$(document).ready(function() {
-	var a_test = new Cohorts.Test({
-		name: 'a_test',
-		scope: 1, // Sets the scope for the test and custom variable: 1: Visitor, 2: Session, 3: Page 
-		cv_slot: 5, // Sets the custom variable slot used in the GoogleAnalyticsAdapter
-		sample: 1,
-		cohorts: {
-			variation_a: {
-				onChosen: function() {
-					$('p.message').html('Hello.');
-				}
-			},
-			variation_b: {
-				onChosen: function() {
-					$('p.message').html('Sup?');
-				}
-			},
-		},
-	});
-	$('p.message').click(function() {
-		a_test.event('Clicked on message'); // Track any evens with your storage adapter
-	});
-	// Add more test objects as you need
+var a_test = new Cohorts.Test({
+    name:'CTA Wave 2',
+    scope:1,
+    varSlot:3,
+    sample:1,
+    urlMatch:[
+        {
+            regex: /.*/i // Run on all pages matching a regular expression of the href (optional)
+        }
+    ],
+    uaBlock:[
+        {
+    	    "ie":[5,6,7,8], // Block troublesome browsers (optional)
+        }
+    ],
+    cookieMatch:[
+        {
+        "cookieName": "value" // Run test only when this cookie value exists (optional)
+        }
+    ],
+    referrerMatch:[
+        "https://www.google.com/", "http://www.bing.com/" // Run test only when the referrer matches (optional)
+    ],
+    cohorts:{
+        "Original":{
+            onChosen: function()
+            {
+                // Do nothing
+            }
+        },
+        "Variation A":{
+            onChosen: function()
+            {
+                $('p.message').html('Yo, test is running!'); // When variation runs, do this 
+            }
+        }
+    }
 });
 </code></pre>
 
