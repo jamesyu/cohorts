@@ -31,7 +31,7 @@ var a_test = new Cohorts.Test({
     ],
     uaBlock:[
         {
-    	    "ie":[5,6,7,8], // Block troublesome browsers (optional)
+    	    "ie":[5,6,7,8] // Block troublesome browsers (optional)
         }
     ],
     cookieMatch:[
