@@ -2,9 +2,9 @@ h1. Cohorts
 
 Cohorts is a simple, purely javascript, multivariate testing framework.
 
-It allows you to easily run split tests for visitors on your site, showing them different designs, layouts, or whatever you want. Cohorts also allows you to track interesting events that occur for each of the cohorts. By default, it uses Google Analytics event tracking to store data, but you can customize it to use your own or another.
+It allows you to easily run split tests for visitors on your site, showing them different designs, layouts, or whatever you want. Cohorts also allows you to track interesting events that occur for each of the cohorts. There are examples to use it with Google Analytics and SnowPlow Analytics, but you can easily customize it to store data in any analytics platform.
 
-Note that Cohorts will not do any analysis for you: it's up to you to carefully consider analyze the data gathered to make business decisions.
+Note that Cohorts will not do any analysis for you: it's up to you to carefully analyze the data gathered to make business decisions.
 
 Since the framework is purely javascript based, it's especially useful if you're working in an environment that has page and fragment caching.
 
@@ -19,44 +19,56 @@ h2. Basic Usage
 For example, say you want to run a test to determine whether a bigger header link results in more clicks. In your page, you have both big and small header links, and they are not displayed by default. You can setup 2 cohorts like this:
 
 <pre><code>
-    // Note that this example assumes jQuery
-    var header_test = new Cohorts.Test({
-        name: 'big_vs_small_header',
-        sample: 1, // we want to include all visitors in the test
-        cohorts: {
-            big: {
-                onChosen: function() {
-                    $('#big').show();
-                }
-            },
-            small: {
-                onChosen: function() {
-                    $('#small').show();
-                }
+var a_test = new Cohorts.Test({
+    name:'CTA Wave 2',
+    scope:1,
+    varSlot:3,
+    sample:1,
+    urlMatch:[
+        {
+            regex: /.*/i // Run on all pages matching a regular expression of the href (optional)
+        }
+    ],
+    uaBlock:[
+        {
+    	    "ie":[5,6,7,8] // Block troublesome browsers (optional)
+        }
+    ],
+    cookieMatch:[
+        {
+        "cookieName": "value" // Run test only when this cookie value exists (optional)
+        }
+    ],
+    referrerMatch:[
+        "https://www.google.com/", "http://www.bing.com/" // Run test only when the referrer matches (optional)
+    ],
+    cohorts:{
+        "Original":{
+            onChosen: function()
+            {
+                // Do nothing
+            }
+        },
+        "Variation A":{
+            onChosen: function()
+            {
+                $('p.message').html('Yo, test is running!'); // When variation runs, do this 
             }
         }
-    });
-
-    $('#big').click(function() {
-        header_test.event('Clicked on Header');
-    });
-
-    $('#small').click(function() {
-        header_test.event('Clicked on Header');
-    });
-    
+    }
+});
 </code></pre>
 
-After running this live on your site, you will see new data in the Event Tracking section of Google Analytics.
+After running this on your site, you will see new data in the Event Tracking section of Google Analytics.
 
-There will be a new category called "cohorts", and under that, all your tests will show up as "actions". In this case "big_vs_small_header" will be an action.
+There will be a new category called "cohorts", and under that your tests will show up as "actions". In this case "a_test" will be an action.
 
 Under each test action, you will see various labels. For this example, you will see the following labels:
 
-* "big | Total" - The total number of people seeing the big header
-* "big | Clicked on Header " - The total number of people in the big cohort that clicked on the header
-* "small | Total" - The total number of people seeing the small header
-* "small | Clicked on Header " - The total number of people in the small cohort that clicked on the header
+* "variation_a" - The total number of people seeing "variation_a"
+* "variation_a | Clicked on message" - The total number of people in this cohort that converted
+* "variation_b" - The total number of people seeing "variation_b"
+* "variation_b | Clicked on message" - The total number of people in this cohort that converted
 
 From this data, you can determine the effects the design change.
 
@@ -67,6 +79,7 @@ h3. Constructor
 To initiate the test, create an instance of @Cohorts.Test@, which accepts an options hash with the following keys:
 
 * @name@ The name of the test. This needs to be unique.
+* @scope@ Whether you want the test to persist at the level of a 1: Visitor, 2: Session, 3: Page (integer 1-3, 1 is recommended)
 * @sample@ A float from 0 to 1.0 representing the percentage of visitors that should be in the test. For example, if you specify 0.5, only 50% of visitors will be considered to be testable. This is useful if you want to restrict testing to a small percentage of visitors.
 * @cohorts@ Hash with keys of the names of the cohorts. For the values, you can specify a @onChosen@ function that should be executed as soon as the visitor resolves to that cohort.
 * @storageAdapter@ An object representing the data store you want to use. More details below. If you don't specify anything, it will defaults to using Google Analytics event tracking.
@@ -89,7 +102,9 @@ myStorageAdapter = {
     //   inTest: whether the visitor is in the test
     //   testName: the name of the test
     //   cohort: the cohort chosen for the visitor. Will be null if the visitor isn't in the test
-    onInitialize: function(inTest, testName, cohort) {
+    //   cv_slot: the custom variable slot the test will occupy for the web analytics tool used
+    //   scope: the scope of the test (whether test/tracking persists at the visitor level [1] or session level [2])
+    onInitialize: function(inTest, testName, cohort, cv_slot, scope) {
         // do initialization stuff
     },
     
@@ -110,10 +125,10 @@ h2. Forcing Cohorts
 It's useful when testing to force yourself into a particular cohort. You can specify a cohort via URL encoded params in a hash, like so:
 
 <pre><code>
-http://www.example.com/page.html#test1=cohort_foo&test2=cohort_bar
+http://www.example.com/page.html#hello-goodbye=hello&test2=cohort
 </code></pre>
 
-This would force @test1@ to be in @cohort_foo@ and @test2@ to be in @cohort_bar@. 
+This would force @test1@ to be in @cohort_foo@ and @test2@ to be in @cohort_bar@. To preview your code in a production environment without exposing visitors to the test, you can just set the sample to 0 while you force particular versions of the page.
 
 h2. Details and Notes
 
@@ -125,4 +140,4 @@ You can have multiple tests running on a page, as long as your test names are un
 
 h2. TODO
 
-* Ability to specify cookie expiry.
+* More examples

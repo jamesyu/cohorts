@@ -1,59 +1,65 @@
+<!DOCTYPE html>
 <html>
-    <head>
-        <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-        <title>test</title>
-        <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
-        <script type="text/javascript" src="../lib/cohorts.js"></script>
-        <script type="text/javascript">
+<head>
+<title>Cohorts.js</title>
 
-          var _gaq = _gaq || [];
-          _gaq.push(['_setAccount', 'UA-16758721-1']);
-          _gaq.push(['_trackPageview']);
-
-          (function() {
-            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-          })();
-
-        </script>
-    </head>
-    <body id="test" onload="">
-        <h1 style="display:none" id="big">
-            <a href="#">This is a big header</a>
-        </h1>
-        
-        <h2 id="small">
-            <a href="#">This is a small header</a>
-        </h2>
-        
-    
-        <script type="text/javascript" charset="utf-8">
-            $(document).ready(function() {
-                Cohorts.Options.debug = true;
-                
-                header_test = new Cohorts.Test({
-                    name: 'big_vs_small_header',
-                    sample: 1,
-                    cohorts: {
-                        big: {
-                            onChosen: function() {
-                                $('#big').show();
-                                $('#small').hide();
-                            }
-                        },
-                        small: {},
-                    }
-                });
-            
-                $('#big').click(function() {
-                    header_test.event('Clicked on Big Header');
-                });
-            
-                $('#small').click(function() {
-                    header_test.event('Clicked on Small Header');
-                });
-            });
-        </script>
-    </body>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+<script type="text/javascript" src="cohorts.js"></script>
+<script type="text/javascript">
+var a_test = new Cohorts.Test({
+    name:'CTA Wave 2',
+    scope:1,
+    varSlot:3,
+    sample:1,
+    urlMatch:[
+        {
+            regex: /.*/i // Run on all pages matching a regular expression of the href
+        }
+    ],
+    /*
+    uaBlock:[
+        {
+    	    "ie":[5,6,7,8], // Block troublesome browsers
+        }
+    ],
+    cookieMatch:[
+        {
+        "cookieName": "value"
+        }
+    ],
+    referrerMatch:[
+        "https://www.google.com/", "http://www.bing.com/"
+    ],
+    */
+    cohorts:{
+        "Original":{
+            onChosen: function()
+            {
+                // Do nothing
+            }
+        },
+        "Variation A":{
+            onChosen: function()
+            {
+                $('p.message').html('Yo, test is running!'); // When variation runs, do this 
+            }
+        }
+    }
+});
+</script>
+</head>
+<body>
+<!-- Google Tag Manager -->
+<noscript><iframe src="//www.googletagmanager.com/ns.html?id=GTM-845DL"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-845DL');</script>
+<!-- End Google Tag Manager -->
+<h1>Testing</h1>
+<p class="message"></p>
+<p>For more information on how this works, check out the Readme.</p>
+</body>
 </html>

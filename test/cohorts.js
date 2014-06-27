@@ -7,26 +7,12 @@ Cohorts = (function () {
         debug: true
     };
 
-    // test scope definition
-    var TEST_SCOPE = {
-        USER:"user",
-        SESSION:"session",
-        HIT:"hit"
-    };
-
-    // target URL match type
-    var TARGET_URL_MATCH = {
-        HREF:"href",
-        PATHNAME:"pathname"
-    };
-
     // By default, Cohorts events are pushed onto a data layer (if one is not defined in the test)
     var dataLayerAdapter = {
 
         nameSpace: 'experiments',
-        onInitialize: function(inTest, testName, cohort, analyticsSlot, testScope, newToTest) {
-
-            var key = 'testSlot'+analyticsSlot;
+        onInitialize: function(inTest, testName, cohort, varSlot, scope) {
+            var key = 'testSlot'+varSlot;
             var obj = {};
             obj[key] = testName+' '+cohort;
             dataLayer.push(obj);
@@ -35,8 +21,7 @@ Cohorts = (function () {
                 'nameSpace': this.nameSpace,
                 'testName': testName,
                 'cohort': cohort,
-                'testScope': testScope,
-                'newToTest': newToTest
+                'testScope': scope
             });
 
         },
@@ -46,15 +31,15 @@ Cohorts = (function () {
                 'eventCategory': this.nameSpace,
                 'eventAction': testName,
                 'eventLabel': cohort,
-                'eventProperty': scope, // this scope variable is undefined now, is this 'onEvent' method is not in use?
+                'eventProperty': scope,
                 'eventValue': 1,
                 'eventNonInt': false
             });
 
         }
 
-    };
-
+    }
+	
     // The main test object
     var Test = (function () {
 
@@ -65,19 +50,20 @@ Cohorts = (function () {
             this.options = Utils.extend({
                 name: null,
                 cohorts: null,
-                testScope: TEST_SCOPE.USER,
-                analyticsSlot: null,
-                sampleRate: 1.0,
+                scope: 1,
+                varSlot: null,
+                sample: 1.0,
                 storageAdapter: null
             }, options);
-            this.cohorts = Utils.keys(this.options.cohorts);
 
             // Check params
             if (this.options.name === null) throw ('A name for this test must be specified');
             if (this.options.cohorts === null) throw ('Cohorts must be specified for this test');
-            if (this.cohorts.length < 2) throw ('You must specify at least 2 cohorts for a test');
-            if (!this.options.analyticsSlot) this.options.analyticsSlot = 5;
+            if (Utils.size(options.cohorts) < 2) throw ('You must specify at least 2 cohorts for a test');
+            if (!this.options.varSlot) this.options.varSlot = 5;
             if (!this.options.storageAdapter) this.options.storageAdapter = dataLayerAdapter;
+
+            this.cohorts = Utils.keys(this.options.cohorts);
 
             this.run();
 
@@ -106,22 +92,12 @@ Cohorts = (function () {
                 // Determine whether user should be in the test & they're on a test page
                 var in_test = this.inTest();
                 var isExecutable = this.isExecutable();
-                var newToThisTest = false;
-                var excludeBySample = false;
 
                 if (in_test === null && !isExecutable){
                     return;
                 }
                 if (in_test === null && isExecutable) {
-                    in_test = Math.random() <= this.options.sampleRate;
-                    if (in_test)
-                    {
-                        newToThisTest = true;
-                    }
-                    else
-                    {
-                        excludeBySample = true;
-                    }
+                    in_test = Math.random() <= this.options.sample;
                 }
 
                 // Visitors selected into the test are assigned a cohort or set to view an existing one
@@ -129,18 +105,24 @@ Cohorts = (function () {
 
                     Utils.log("Test Object ["+this.options.name+"] run.");
                     this.setCookie('in_test', 1);
-                    var chosen_cohort, currentCohort = this.getCohort();
+                    var chosen_cohort;
 
-                    if (!currentCohort) {
-                        chosen_cohort = this.chooseCohort();
+                    if (!this.getCohort()) {
+
+                        var partitions = 1.0 / Utils.size(this.options.cohorts);
+                        var chosen_partition = Math.floor(Math.random() / partitions);
+                        chosen_cohort = Utils.keys(this.options.cohorts)[chosen_partition];
                         this.setCohort(chosen_cohort);
+
                     } else {
+
                         // Returning visitors see the same cohort as last time
-                        chosen_cohort = currentCohort;
+                        chosen_cohort = this.getCohort();
+
                     }
 
                     // Track visitors in the test
-                    this.options.storageAdapter.onInitialize(in_test, this.options.name, chosen_cohort, this.options.analyticsSlot, this.options.testScope, newToThisTest);
+                    this.options.storageAdapter.onInitialize(in_test, this.options.name, chosen_cohort, this.options.varSlot, this.options.scope);
 
                     // If using redirectTo handler, redirect now to the URL (unless we're already there)
                     var chosenCohortObject = this.options.cohorts[chosen_cohort];
@@ -177,34 +159,37 @@ Cohorts = (function () {
                             });
                         }
                     }
-                } else
-                {
+                } else {
+
                     // For people who were excluded due to sampling, let's exclude them now
-                    if (excludeBySample) this.setCookie('in_test', 0);
+                    if (!this.isExecutable()) this.setCookie('in_test', 0);
 
                 }
 
             },
+
             event: function (eventName) {
                 if (this.inTest()) this.options.storageAdapter.onEvent(this.options.name, this.getCohort(), eventName);
             },
+
             /**
              * check if a test object is Executable(onChosen and redirect can be performed)
-             * this method will check 4 options, urlMatch, userAgentExclude, cookieMatch, referrerMatch
+             * this method will check 4 options, urlMatch, uaBlock, cookieMatch, referrerMatch
              * all options must be matched.
              * @return {Boolean}
              */
             isExecutable:function()
             {
-                var targetURLMatch = this.targetURLMatch();
-                if (!targetURLMatch)
+
+                var urlMatch = this.urlMatch();
+                if (!urlMatch)
                 {
-                    Utils.log("Test Object ["+this.options.name+"] targetURL not matched.");
+                    Utils.log("Test Object ["+this.options.name+"] url not matched.");
                     return false;
                 }
 
-                var userAgentExclude = this.options.userAgentExclude?userAgentUtil.match(this.options.userAgentExclude):false;
-                if (userAgentExclude)
+                var uaBlock = userAgentUtil.match(this.options.uaBlock);
+                if (uaBlock === false && this.options.uaBlock)
                 {
                     Utils.log("Test Object ["+this.options.name+"] user agent blocked.");
                     return false;
@@ -227,21 +212,21 @@ Cohorts = (function () {
                 return true;
             },
             /**
-             * check if current page url matched the test object targetURL option(url split feature)
-             * targetURL is an array of url items
+             * check if current page url matched the test object urlMatch option(url split feature)
+             * urlMatch is an array of url items
              * you can specify it like this:
-             * targetURL: [/test1.html/i, /test2.html/i], that means, the test object will run in test1.html or test2.html
-             * or targetURL:[
+             * urlMatch: [/test1.html/i, /test2.html/i], that means, the test object will run in test1.html or test2.html
+             * or urlMatch:[
              * {
-             * expression: /gclid=/i,
-             * match:"pathname" ("href"--expression will apply for document.location.href, "pathname"--expression will apply for document.location.pathname)
+             * regex: /gclid=/i,
+             * regexType:1 (0--regex will apply for document.location.href, 1--regex will apply for document.location.pathname)
              * }
-             * ],that means the regex will apply for document.location.pathname
+             * ],that means the regex will apply for document.location.search
              * @return {Boolean}
              */
-            targetURLMatch: function()
+            urlMatch: function()
             {
-                var urlRegexes = this.options.targetURL;
+                var urlRegexes = this.options.urlMatch;
                 var urlMatch = false;
 
                 if (!urlRegexes) return true;
@@ -253,15 +238,15 @@ Cohorts = (function () {
 
                     if (Utils.isObject(regObj)&&!regObj.test)
                     {
-                        reg = regObj.expression;
-                        regType = regObj.match == null?TARGET_URL_MATCH.HREF:regObj.match;
+                        reg = regObj.regex;
+                        regType = regObj.regexType == null?0:regObj.regexType;
                     }
                     else
                     {
                         reg = regObj;
                     }
 
-                    if (regType.toLowerCase() == TARGET_URL_MATCH.HREF)
+                    if (regType == 0)
                     {
                         urlMatch = reg.test(document.location.href);
                     }
@@ -344,7 +329,6 @@ Cohorts = (function () {
             {
                 var tr = this.options.referrerMatch;
                 if (!tr) return true;
-                if (tr.length <=0) return true;
 
                 if (Utils.isFunction(tr))
                 {
@@ -364,130 +348,21 @@ Cohorts = (function () {
 
                 return referrerMatch;
             },
-            /**
-             * choose cohort by random or percentage based random
-             * if all cohort objects has 'sampleRate' property then use percentage based random
-             * @returns cohort key
-             */
-            chooseCohort:function()
-            {
-                var cohorts = this.options.cohorts;
-                var chosen_cohort, partitions, chosen_partition, sameCohorts;
-
-                // check if sample property was set in cohort objects
-                var samplesWasSet = true;
-                for (var p in cohorts)
-                {
-                    if (cohorts[p].sampleRate == null)
-                    {
-                        samplesWasSet = false;
-                        break;
-                    }
-                }
-
-                // no sample was set, just use pure random
-                if (!samplesWasSet)
-                {
-                    partitions = 1.0 / this.cohorts.length;
-                    chosen_partition = Math.floor(Math.random() / partitions);
-                    chosen_cohort = this.cohorts[chosen_partition];
-                }
-                else
-                {
-                    var getRandom = function()
-                    {
-                        return Math.random();
-                    };
-
-                    var orderedCohorts = this.getOrderedBySampleCohorts();
-                    var sameSimpleRateCohorts = this.getSameSimpleRateValueCohorts(orderedCohorts);
-
-                    var weight = 0;
-                    var lastSample = orderedCohorts[orderedCohorts.length-1].sampleRate;
-
-                    while(!chosen_cohort)
-                    {
-                        weight = getRandom();
-                        for (var i=0;i<orderedCohorts.length;i++)
-                        {
-                            if (weight <= orderedCohorts[i].sampleRate)
-                            {
-                                chosen_cohort = orderedCohorts[i].key;
-                                sameCohorts = sameSimpleRateCohorts[orderedCohorts[i].sampleRate];
-                                if (sameCohorts)
-                                {
-                                    partitions = 1.0 / sameCohorts.length;
-                                    chosen_partition = Math.floor(Math.random() / partitions);
-                                    chosen_cohort = sameCohorts[chosen_partition].key;
-                                }
-
-                                break;
-                            }
-                        }
-
-                        if (!chosen_cohort && (weight - lastSample)<= (1-lastSample))
-                        {
-                            chosen_cohort = orderedCohorts[orderedCohorts.length-1].key;
-                            sameCohorts = sameSimpleRateCohorts[orderedCohorts[orderedCohorts.length-1].sampleRate];
-                            if (sameCohorts)
-                            {
-                                partitions = 1.0 / sameCohorts.length;
-                                chosen_partition = Math.floor(Math.random() / partitions);
-                                chosen_cohort = sameCohorts[chosen_partition].key;
-                            }
-                        }
-                    }
-                }
-
-                return chosen_cohort;
-            },
-            getOrderedBySampleCohorts:function()
-            {
-                var cohorts = this.options.cohorts;
-                var orderedCohorts = [];
-
-                for (var p in cohorts)
-                {
-                    orderedCohorts.push({key: p, sampleRate: cohorts[p].sampleRate});
-                }
-
-                orderedCohorts.sort(function (a, b)
-                {
-                    return a.sampleRate - b.sampleRate;
-                });
-
-                return orderedCohorts;
-            },
-            getSameSimpleRateValueCohorts: function(orderedCohorts)
-            {
-                var tempCohorts = {}, simpleRate;
-                for (var i= 0,c=orderedCohorts.length;i<c;i++)
-                {
-                    simpleRate = orderedCohorts[i].sampleRate;
-                    if (!tempCohorts[simpleRate])
-                    {
-                        tempCohorts[simpleRate] = [];
-                        tempCohorts[simpleRate].push(orderedCohorts[i]);
-                    }
-                    else
-                    {
-                        tempCohorts[simpleRate].push(orderedCohorts[i]);
-                    }
-                }
-
-                for (var p in tempCohorts)
-                {
-                    if (tempCohorts[p].length <=1)
-                    {
-                        delete tempCohorts[p];
-                    }
-                }
-
-                return tempCohorts;
-            },
             inTest: function () {
-                var in_test = this.getCookie('in_test');
-                return in_test==null?null:in_test==1;
+                if (this.getCookie('in_test') == 1) {
+                    return true;
+                } else if (this.getCookie('in_test') == 0) {
+                    return false;
+                } else {
+                    return null;
+                }
+            },
+            inCohort: function (cohort) {
+                if (this.inTest()) {
+                    return this.getCohort() == cohort;
+                } else {
+                    return false;
+                }
             },
             getCohort: function () {
                 if (this.inTest()) {
@@ -505,7 +380,7 @@ Cohorts = (function () {
                 }
             },
             setCookie: function (name, value, options) {
-                Cookies.set(cookiePrefix + '_' + this.options.name + '_' + name, value, options, this.options.testScope);
+                Cookies.set(cookiePrefix + '_' + this.options.name + '_' + name, value, options, this.options.scope);
             },
             getCookie: function (name) {
                 return Cookies.get(cookiePrefix + '_' + this.options.name + '_' + name);
@@ -518,13 +393,19 @@ Cohorts = (function () {
     var Utils = {
         extend: function (destination, source) {
             for (var property in source)
-                destination[property] = source[property];
+            destination[property] = source[property];
             return destination;
+        },
+        size: function (object) {
+            var i = 0;
+            for (var property in object)
+            i += 1;
+            return i;
         },
         keys: function (object) {
             var results = [];
             for (var property in object)
-                results.push(property);
+            results.push(property);
             return results;
         },
         log: function (message) {
@@ -537,13 +418,13 @@ Cohorts = (function () {
             }
         },
         isObject: function(it){
-            return it !== undefined &&
-                (it === null || typeof it == "object" );
-        },
+			return it !== undefined &&
+				(it === null || typeof it == "object" );
+		},
         isFunction: function(it){
             var opts = Object.prototype.toString;
-            return opts.call(it) === "[object Function]";
-        },
+			return opts.call(it) === "[object Function]";
+		},
         arrayIndexOf: function(array, item)
         {
             if (Array.prototype.indexOf)
@@ -568,90 +449,188 @@ Cohorts = (function () {
         }
     };
 
-    // Adapted from dojo.cookie module
-    var Cookies = {
+    // Adapted from James Auldridge's jquery.cookies
+    var Cookies = (function () {
+
+        var resolveOptions, assembleOptionsString, parseCookies, constructor, defaultOptions = {
+            expiresAt: null,
+            path: '/',
+            domain: null,
+            secure: false
+        };
+
+        /**
+         * resolveOptions - receive an options object and ensure all options are present and valid, replacing with defaults where necessary
+         *
+         * @access private
+         * @static
+         * @parameter Object options - optional options to start with
+         * @return Object complete and valid options object
+         */
+        resolveOptions = function (options) {
+            var returnValue, expireDate;
+
+            if (typeof options !== 'object' || options === null) {
+                returnValue = defaultOptions;
+            } else {
+                returnValue = {
+                    expiresAt: defaultOptions.expiresAt,
+                    path: defaultOptions.path,
+                    domain: defaultOptions.domain,
+                    secure: defaultOptions.secure
+                };
+
+                if (typeof options.expiresAt === 'object' && options.expiresAt instanceof Date) {
+                    returnValue.expiresAt = options.expiresAt;
+                }
+
+                if (typeof options.path === 'string' && options.path !== '') {
+                    returnValue.path = options.path;
+                }
+
+                if (typeof options.domain === 'string' && options.domain !== '') {
+                    returnValue.domain = options.domain;
+                }
+
+                if (options.secure === true) {
+                    returnValue.secure = options.secure;
+                }
+            }
+
+            return returnValue;
+        };
+        /**
+         * assembleOptionsString - analyze options and assemble appropriate string for setting a cookie with those options
+         *
+         * @access private
+         * @static
+         * @parameter options OBJECT - optional options to start with
+         * @return STRING - complete and valid cookie setting options
+         */
+        assembleOptionsString = function (options) {
+            return (
+                '; expires=' + ((options.expiresAt === null) ? 0 : options.expiresAt.toGMTString()) + '; path=' + options.path + (typeof options.domain === 'string' ? '; domain=' + options.domain : '') + (options.secure === true ? '; secure' : ''));
+        };
         /**
          * parseCookies - retrieve document.cookie string and break it into a hash with values decoded and unserialized
          *
-         * @access public
+         * @access private
          * @static
          * @return OBJECT - hash of cookies from document.cookie
          */
-        parseCookies: function()
-        {
-            var cookies = {}, i, pair, name, value, separated = document.cookie.split(';'), c = separated.length;
-            for (i = 0; i < c; i++) {
+        parseCookies = function () {
+            var cookies = {}, i, pair, name, value, separated = document.cookie.split(';'),
+                unparsedValue;
+            for (i = 0; i < separated.length; i = i + 1) {
                 pair = separated[i].split('=');
                 name = pair[0].replace(/^\s*/, '').replace(/\s*$/, '');
-                value = decodeURIComponent(pair[1])||null;
+
+                try {
+                    value = decodeURIComponent(pair[1]);
+                } catch (e1) {
+                    value = pair[1];
+                }
+
+                if (typeof JSON === 'object' && JSON !== null && typeof JSON.parse === 'function') {
+                    try {
+                        unparsedValue = value;
+                        value = JSON.parse(value);
+                    } catch (e2) {
+                        value = unparsedValue;
+                    }
+                }
+
                 cookies[name] = value;
             }
             return cookies;
-        },
+        };
+
+        constructor = function () {};
+
+        constructor.prototype.parseCookies = parseCookies;
+
         /**
-         * get - get one cookies
+         * get - get one, several, or all cookies
          *
          * @access public
-         * @paramater String cookieName - name of single cookie
-         * @return String - Value of cookie as set
+         * @paramater Mixed cookieName - String:name of single cookie; Array:list of multiple cookie names; Void (no param):if you want all cookies
+         * @return Mixed - Value of cookie as set; Null:if only one cookie is requested and is not found; Object:hash of multiple or all cookies (if multiple or all requested);
          */
-        get: function(name)
-        {
-            var c = document.cookie, ret;
-            var matches = c.match(new RegExp("(?:^|; )" + this.escapeString(name) + "=([^;]*)"));
-            ret = matches ? decodeURIComponent(matches[1]) : null;
+        constructor.prototype.get = function (cookieName) {
+            var returnValue, item, cookies = parseCookies();
 
-            return ret;
-        },
+            if (typeof cookieName === 'string') {
+                returnValue = (typeof cookies[cookieName] !== 'undefined') ? cookies[cookieName] : null;
+            } else if (typeof cookieName === 'object' && cookieName !== null) {
+                returnValue = {};
+                for (item in cookieName) {
+                    if (typeof cookies[cookieName[item]] !== 'undefined') {
+                        returnValue[cookieName[item]] = cookies[cookieName[item]];
+                    } else {
+                        returnValue[cookieName[item]] = null;
+                    }
+                }
+            } else {
+                returnValue = cookies;
+            }
+
+            return returnValue;
+        };
+
         /**
          * set - set or delete a cookie with desired options
          *
          * @access public
-         * @paramater String name - name of cookie to set
-         * @paramater String value - value of cookie to set. NULL to delete
-         * @paramater Object props - optional list of cookie options to specify
+         * @paramater String cookieName - name of cookie to set
+         * @paramater Mixed value - Any JS value. If not a string, will be JSON encoded; NULL to delete
+         * @paramater Object options - optional list of cookie options to specify
          * @return void
          */
-        set: function(name, value, props, testScope)
-        {
-            props = props || {};
-            props.path||(props.path='/');
-            var exp = props.expires, d;
-            if(typeof exp == "number"){
-                d = new Date();
-                d.setTime(d.getTime() + exp*24*60*60*1000);
-                exp = props.expires = d;
-            }
-            else if (testScope.toLowerCase() === TEST_SCOPE.USER) {
+        constructor.prototype.set = function (cookieName, value, options, scope) {
+            if (typeof options !== 'object' || options === null) {
+                var expire = new Date();
+
+                options = {
+                    expiresAt: new Date(expire),
+                    path: '/',
+                    domain: null,
+                    secure: false
+                };
+
                 // Expire cookies after 2yrs with visitor level scope
-                d = new Date();
-                d.setTime(d.getTime() + 3600000 * 24 * 730);
-                exp = props.expires = d;
+                if (scope === 1) {
+                    expire = expire.setTime(expire.getTime() + 3600000 * 24 * 730);
+                    options.expiresAt = new Date(expire);
+                }
+
+                // Set cookie to expire at session level for session scope
+                if (scope === 2) {
+                    options.expiresAt = null;
+                }
+
             }
 
-            if(exp && exp.toUTCString){ props.expires = exp.toUTCString(); }
-
-            value = encodeURIComponent(value);
-            var updatedCookie = name + "=" + value, propName;
-            for(propName in props){
-                updatedCookie += "; " + propName;
-                var propValue = props[propName];
-                if(propValue !== true){ updatedCookie += "=" + propValue; }
+            if (typeof value === 'undefined' || value === null) {
+                value = '';
+                options.hoursToLive = -8760;
             }
-            document.cookie = updatedCookie;
-        },
-        /**
-         * Adds escape sequences for special characters in regular expressions
-         * @param str
-         * @returns string
-         */
-        escapeString: function(str)
-        {
-            return str.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, function(ch){
-                return "\\" + ch;
-            });
-        }
-    };
+            else if (typeof value !== 'string') {
+                if (typeof JSON === 'object' && JSON !== null && typeof JSON.stringify === 'function') {
+                    value = JSON.stringify(value);
+                } else {
+                    value = value.toString();
+                    // just set value = value.toString() in this case
+                    //throw new Error('cookies.set() received non-string value and could not serialize.');
+                }
+            }
+
+            var optionsString = assembleOptionsString(options);
+
+            document.cookie = cookieName + '=' + encodeURIComponent(value) + optionsString;
+        };
+
+        return new constructor();
+    })();
 
     // adapted from https://github.com/requirejs/domReady
     var domReadyUtil = (function(){
@@ -742,7 +721,6 @@ Cohorts = (function () {
     })();
     // user agent util, inspired by dojo.sniff
     var userAgentUtil = {
-        initialized:false,
         /**
          * detect user agent attributes
          */
@@ -802,19 +780,17 @@ Cohorts = (function () {
             if (dua.match(/(iPhone|iPod|iPad)/))
             {
                 var p = RegExp.$1.replace(/P/, 'p');
-                var v = dua.match(/OS ([\d_]+)/) ? RegExp.$1 : "1";
+                var v = ua.match(/OS ([\d_]+)/) ? RegExp.$1 : "1";
                 var os = parseFloat(v.replace(/_/, '.').replace(/_/g, ''));
                 this[p] = os;
             }
-
-            this.initialized = true;
         },
         /**
-         * test if current browser's user agent matched the test object userAgentExclude options
-         * @param tua test object userAgentExclude option, it's an array of ua items,
+         * test if current browser's user agent matched the test object uaBlock options
+         * @param tua test object uaBlock option, it's an array of ua items,
          * you can specify it like this:
-         * userAgentExclude:["ie", "chrome"], that means test object will run on ie and chrome
-         * userAgentExclude:[{ie:[9, 10]}, {chrome:[25, 26]}] that means test object will run on ie9, ie10, chrome25, chrome26
+         * uaBlock:["ie", "chrome"], that means test object will run on ie and chrome
+         * uaBlock:[{ie:[9, 10]}, {chrome:[25, 26]}] that means test object will run on ie9, ie10, chrome25, chrome26
          * support ua names, ie, ff, chrome, safari, opera
          * we can also specify it by platforms like ios, android
          * support platform names, ios, android, bb
@@ -822,7 +798,6 @@ Cohorts = (function () {
          */
         match: function(tua)
         {
-            if (!this.initialized) this.init();
             if (!tua) return false;
             if (tua.length <=0) return false;
 
@@ -843,7 +818,7 @@ Cohorts = (function () {
                         {
                             if (this[p] == items[m])
                             {
-                                ret = true;
+                                ret = false;
                                 break;
                             }
                         }
@@ -859,9 +834,11 @@ Cohorts = (function () {
                 if (ret) break;
             }
 
-            return ret===undefined?false:ret;
+            return ret;
         }
     };
+
+    userAgentUtil.init();
 
     return {
         Test: Test,
